@@ -96,18 +96,27 @@ resource "aws_iam_role_policy_attachment" "cloiudwatch_policy_attachment" {
 
 
 resource "aws_launch_template" "ec2_launch_template" {
-    name = var.ec2_template_name
+  name = var.ec2_template_name
 
-    block_device_mappings {
-        device_name = "/dev/xvda"
-        ebs {
+  block_device_mappings {
+    device_name = "/dev/xvda"
+      ebs {
           volume_size = var.volume_size
           volume_type = "gp2"
         }
     }
-    instance_type   = var.instance_type
-    key_name        = var.keyname
-  
+  instance_type   = var.instance_type
+  key_name        = var.keyname
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+    instance_metadata_tags      = "enabled"
+  }
+  tags = {
+      Name = var.node_group_name
+    }
+
   user_data = filebase64("${path.module}/ec2_bash.sh")
   depends_on = [
     aws_eks_node_group.eks_node_group
@@ -125,6 +134,7 @@ resource "aws_eks_node_group" "eks_node_group" {
     max_size     = var.node_asg_max_size
     min_size     = var.node_asg_min_size
   }
+  
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
